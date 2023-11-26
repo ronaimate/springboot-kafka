@@ -26,21 +26,23 @@ class OrderCreatedHandlerTest {
 
 	@Test
 	void listen_Success() throws Exception {
+		final var key = randomUUID().toString();
 		final var testEvent = buildOrderCreatedEvent(randomUUID(), "car");
 
-		handler.listen(testEvent);
+		handler.listen(0, key, testEvent);
 
-		verify(dispatchServiceMock, times(1)).process(testEvent);
+		verify(dispatchServiceMock, times(1)).process(key, testEvent);
 	}
 
 	@Test
 	void listen_ServiceThrowsException() throws Exception {
+		final var key = randomUUID().toString();
 		final var testEvent = buildOrderCreatedEvent(randomUUID(), "car");
-		doThrow(new RuntimeException("Service failure")).when(dispatchServiceMock).process(testEvent);
+		doThrow(new RuntimeException("Service failure")).when(dispatchServiceMock).process(key, testEvent);
 
-		handler.listen(testEvent);
+		handler.listen(0, key, testEvent);
 
-		verify(dispatchServiceMock, times(1)).process(testEvent);
+		verify(dispatchServiceMock, times(1)).process(key, testEvent);
 	}
 
 }
