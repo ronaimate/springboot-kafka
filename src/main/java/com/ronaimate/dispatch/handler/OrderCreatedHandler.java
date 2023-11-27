@@ -1,5 +1,6 @@
 package com.ronaimate.dispatch.handler;
 
+import org.springframework.kafka.annotation.KafkaHandler;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
@@ -15,14 +16,15 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 @Component
+@KafkaListener(id = "orderConsumerClient",
+		topics = "order.created",
+		groupId = "dispatch.order.created.consumer",
+		containerFactory = "kafkaListenerContainerFactory")
 public class OrderCreatedHandler {
 
 	private final DispatchService dispatchService;
 
-	@KafkaListener(id = "orderConsumerClient",
-			topics = "order.created",
-			groupId = "dispatch.order.created.consumer",
-			containerFactory = "kafkaListenerContainerFactory")
+	@KafkaHandler
 	public void listen(@Header(KafkaHeaders.RECEIVED_PARTITION) final int partition,
 			@Header(KafkaHeaders.RECEIVED_KEY) final String key,
 			@Payload final OrderCreated payload) {
