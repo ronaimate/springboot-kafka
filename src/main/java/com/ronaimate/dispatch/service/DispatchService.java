@@ -1,11 +1,14 @@
 package com.ronaimate.dispatch.service;
 
+import java.time.LocalDate;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import com.ronaimate.dispatch.client.StockServiceClient;
+import com.ronaimate.dispatch.messages.DispatchCompleted;
 import com.ronaimate.dispatch.messages.DispatchPreparing;
 import com.ronaimate.dispatch.messages.OrderCreated;
 import com.ronaimate.dispatch.messages.OrderDispatched;
@@ -26,20 +29,36 @@ public class DispatchService {
 
 	private final KafkaTemplate<String, Object> kafkaProducer;
 
+	private final StockServiceClient stockServiceClient;
+
 	public void process(final String key, final OrderCreated orderCreated)
 			throws ExecutionException, InterruptedException {
-		kafkaProducer.send(DISPATCH_TRACKING_TOPIC, key, DispatchPreparing.builder()
-				.orderId(orderCreated.orderId())
-				.build()).get();
 
-		kafkaProducer.send(ORDER_DISPATCHED_TOPIC, key, OrderDispatched.builder()
-				.orderId(orderCreated.orderId())
-				.processedById(APPLICATION_ID)
-				.note("Dispatched: " + orderCreated.item())
-				.build()).get();
+		final String available = stockServiceClient.checkAvailability(orderCreated.item());
 
-		log.info("Sent message: key: {} - orderId: {} - processedById: {}", key, orderCreated.orderId(),
-				APPLICATION_ID);
+		if (Boolean.valueOf(available)) {
+			kafkaProducer.send(DISPATCH_TRACKING_TOPIC, key, DispatchPreparing.builder()
+					.orderId(orderCreated.orderId())
+					.build()).get();
+
+			kafkaProducer.send(ORDER_DISPATCHED_TOPIC, key, OrderDispatched.builder()
+					.orderId(orderCreated.orderId())
+					.processedById(APPLICATION_ID)
+					.note("Dispatched: " + orderCreated.item())
+					.build()).get();
+
+			kafkaProducer.send(DISPATCH_TRACKING_TOPIC, key, DispatchCompleted.builder()
+					.orderId(orderCreated.orderId())
+					.dispatchedDate(LocalDate.now().toString())
+					.build()).get();
+
+			log.info("Sent message: key: {} - orderId: {} - processedById: {}", key, orderCreated.orderId(),
+					APPLICATION_ID);
+		} else {
+			log.info("Item {} is unavailable.", orderCreated.item());
+		}
+
+
 	}
 
 }

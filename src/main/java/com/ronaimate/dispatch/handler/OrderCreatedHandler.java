@@ -9,6 +9,8 @@ import org.springframework.stereotype.Component;
 
 import com.ronaimate.dispatch.messages.OrderCreated;
 import com.ronaimate.dispatch.service.DispatchService;
+import com.ronaimate.exception.NotRetryableException;
+import com.ronaimate.exception.RetryableException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,8 +33,12 @@ public class OrderCreatedHandler {
 		log.info("Received message: partition: {} - key: {} - payload: {}", partition, key, payload);
 		try {
 			dispatchService.process(key, payload);
+		} catch (RetryableException e) {
+			log.warn("Retryable exception: {}", e.getMessage());
+			throw e;
 		} catch (Exception e) {
-			log.error("Processing failure", e);
+			log.error("NotRetryable exception: {}", e.getMessage());
+			throw new NotRetryableException(e);
 		}
 	}
 
